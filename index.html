@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معنى الهوى — ZAEEM Visualizer Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@200;400;900&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#030307;--fg:#d4cdc0;--accent:#a08050;--gold:#c8a050;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:var(--bg);color:var(--fg);font-family:'Amiri',serif;overflow:hidden;width:100vw;height:100vh}
+
+        /* شاشة البداية */
+        .intro {
+            position:fixed;inset:0;z-index:200;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;
+            background:var(--bg);transition:opacity 1.5s ease,filter 1.5s ease;
+        }
+        .intro.gone { opacity:0;filter:blur(20px);pointer-events:none }
+        .intro-title { font-size:clamp(2rem,5vw,3.5rem);color:var(--accent);font-weight:700;letter-spacing:2px;text-shadow:0 0 40px rgba(160,128,80,.15); }
+        .intro-sub { font-size:clamp(.9rem,2vw,1.1rem);color:rgba(212,205,192,.3);font-family:'Cairo',sans-serif;letter-spacing:3px; }
+        .upload-zone {
+            width:min(90vw,420px);padding:1.8rem;border:1px dashed rgba(160,128,80,.18);border-radius:16px;
+            display:flex;flex-direction:column;align-items:center;gap:.7rem;cursor:pointer;transition:all .4s ease;background:rgba(160,128,80,.015);
+        }
+        .upload-zone:hover { border-color:rgba(160,128,80,.35);background:rgba(160,128,80,.035) }
+        .upload-zone.has-file { border-color:rgba(100,160,100,.25);background:rgba(100,160,100,.025) }
+        .upload-icon { width:44px;height:44px;border:1px solid rgba(160,128,80,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--accent); }
+        .upload-text { font-size:.8rem;color:rgba(212,205,192,.35);font-family:'Cairo',sans-serif; }
+        .upload-filename { font-size:.7rem;color:rgba(100,180,100,.45);font-family:'Cairo',sans-serif;direction:ltr }
+        .play-btn { padding:.75rem 3rem;border-radius:100px;cursor:pointer;background:rgba(160,128,80,.06);border:1px solid rgba(160,128,80,.2);color:var(--accent);font-family:'Cairo',sans-serif;font-size:.85rem;letter-spacing:3px;transition:all .5s ease;opacity:.25;pointer-events:none; }
+        .play-btn.ready { opacity:1;pointer-events:auto }
+        .play-btn.ready:hover { background:rgba(160,128,80,.14);box-shadow:0 0 50px rgba(160,128,80,.08) }
+        .skip-note { font-size:.65rem;color:rgba(212,205,192,.18);font-family:'Cairo',sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:4px; }
+
+        /* الكانفاس والخلفية */
+        #art-canvas { position:fixed;inset:0;z-index:1;pointer-events:none; }
+        .bg-pulse{position:fixed;inset:0;z-index:-1;background:var(--bg);transition:background 2s ease}
+        .vignette{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(0,0,0,.9) 100%);z-index:2;pointer-events:none}
+        .grain{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:128px 128px;animation:grain-s .5s steps(3) infinite}
+        @keyframes grain-s{0%{transform:translate(0,0)}33%{transform:translate(-2px,1px)}66%{transform:translate(1px,-2px)}}
+
+        /* الكلمات */
+        .content{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;height:100vh}
+        .verse{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1rem;transition:opacity 1.5s ease,filter 1.5s ease;padding:2rem;opacity:0}
+        .verse.active{opacity:1}
+        .line{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem}
+        .w{display:inline-block;opacity:0;transform:translateY(35px) scale(.92);transition:opacity 1s cubic-bezier(.23,1,.32,1),transform 1s cubic-bezier(.23,1,.32,1);line-height:1.4}
+        .w.show{opacity:1;transform:translateY(0) scale(1)}
+
+        [data-fx="wave"]{font-size:clamp(2.2rem,5vw,4rem);color:#a8c8e8;font-weight:400;text-shadow: 0 0 20px rgba(168,200,232,0.4)}
+        [data-fx="cure"]{font-size:clamp(2.5rem,6vw,5rem);color:#e0b860;font-weight:700;line-height:1;text-shadow: 0 0 30px rgba(224,184,96,0.6)}
+        [data-fx="infinity"]{font-size:clamp(2.5rem,6vw,5rem);color:#7da0b8;font-weight:700;line-height:1;text-shadow: 0 0 30px rgba(125,160,184,0.6)}
+        [data-fx="heart"]{font-size:clamp(2.5rem,6vw,5rem);color:#d4525f;font-weight:700;line-height:1;text-shadow: 0 0 30px rgba(212,82,95,0.7)}
+        [data-fx="bloom"]{font-size:clamp(2.5rem,6vw,5rem);color:#c8a050;font-weight:700;line-height:1;text-shadow: 0 0 30px rgba(200,160,80,0.6)}
+
+        /* شاشة النهاية (اللوجو والوجه) */
+        .ending {
+            position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;
+            opacity:0;pointer-events:none;transition:opacity 3s ease;background:radial-gradient(circle at center, #050508 0%, #000 100%);
+        }
+        .ending.show { opacity:1;pointer-events:auto }
+        .end-logo-container {
+            position:relative;width:180px;height:180px;
+            opacity:0;transform:scale(0.5) rotate(-180deg);
+            transition:opacity 2s ease, transform 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .ending.show .end-logo-container { opacity:1;transform:scale(1) rotate(0deg) }
+        .end-logo {
+            width:100%;height:100%;object-fit:contain;border-radius:20px;
+            filter:drop-shadow(0 0 30px rgba(255,255,255,0.2)) drop-shadow(0 0 60px rgba(160,128,80,0.3));
+            animation:logo-pulse 4s ease-in-out infinite 2s;
+        }
+        @keyframes logo-pulse { 0%,100%{filter:drop-shadow(0 0 30px rgba(255,255,255,0.2)) drop-shadow(0 0 60px rgba(160,128,80,0.3))} 50%{filter:drop-shadow(0 0 50px rgba(255,255,255,0.5)) drop-shadow(0 0 100px rgba(160,128,80,0.6))} }
+        
+        .end-ring {
+            position:absolute;inset:-20px;border:1px solid rgba(255,255,255,0.1);border-radius:50%;
+            animation:ring-spin 10s linear infinite;
+        }
+        .end-ring::before { content:'';position:absolute;top:-2px;left:50%;width:4px;height:4px;background:var(--gold);border-radius:50%;box-shadow:0 0 10px var(--gold); }
+        @keyframes ring-spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+
+        .end-title {
+            font-family:'Orbitron', sans-serif;font-size:clamp(2.5rem, 8vw, 5rem);font-weight:900;
+            background:linear-gradient(180deg, #ffffff 0%, #a08050 50%, #504030 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+            opacity:0;transform:translateY(30px);transition:opacity 2s ease 1.5s, transform 2s ease 1.5s;
+            letter-spacing:10px;text-shadow:0 0 50px rgba(160,128,80,0.3);
+        }
+        .ending.show .end-title { opacity:1;transform:translateY(0) }
+        
+        .end-credit { font-family:'Cairo',sans-serif;font-size:.9rem;font-weight:200;color:rgba(212,205,192,.3);letter-spacing:6px;opacity:0;transition:opacity 2s ease 2.5s; }
+        .ending.show .end-credit { opacity:1 }
+        
+        .ending-replay { margin-top:2rem;font-family:'Cairo',sans-serif;font-size:.7rem;color:rgba(212,205,192,.2);cursor:pointer;border:1px solid rgba(212,205,192,.1);padding:.5rem 2rem;border-radius:100px;opacity:0;transition:opacity 2s ease 3s, border-color .4s, color .4s; }
+        .ending.show .ending-replay { opacity:1 }
+        .ending-replay:hover { border-color:rgba(160,128,80,.4);color:rgba(160,128,80,.6) }
+    </style>
+</head>
+<body>
+    <div class="intro" id="intro">
+        <div class="intro-title">معنى الهوى</div>
+        <div class="intro-sub">تجربة سمعية وبصرية خارقة</div>
+        <div class="upload-zone" id="uploadZone" role="button" tabindex="0">
+            <div class="upload-icon">&#9835;</div>
+            <div class="upload-text">اضغط هنا واختار ملف الصوت</div>
+            <div class="upload-filename" id="fileName"></div>
+        </div>
+        <input type="file" id="audioInput" accept="audio/*" hidden>
+        <button class="play-btn" id="playBtn">ابدأ العرض</button>
+        <div class="skip-note" id="skipNote">شغل بدون صوت</div>
+    </div>
+
+    <div class="bg-pulse" id="bgp"></div>
+    <canvas id="art-canvas"></canvas>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+
+    <main class="content">
+        <div class="verse" id="v1">
+            <div class="line"><span class="w" data-t="500" data-fx="wave">لو عارفة إيه معنى الهوى</span></div>
+            <div class="line"><span class="w" data-t="4000" data-fx="cure">إن الحب لوحده دوا</span></div>
+        </div>
+        <div class="verse" id="v2">
+            <div class="line"><span class="w" data-t="8000" data-fx="infinity">أنتِ وأنا والحب سوا</span></div>
+            <div class="line"><span class="w" data-t="12000" data-fx="heart">وقلوبنا يعيش فيها الهوى</span></div>
+        </div>
+        <div class="verse" id="v3">
+            <div class="line"><span class="w" data-t="16000" data-fx="bloom">ده أنتِ معزتي</span></div>
+            <div class="line"><span class="w" data-t="19000" data-fx="bloom">حبك جنتي</span></div>
+            <div class="line"><span class="w" data-t="22000" data-fx="bloom">لقاكي فرحتي</span></div>
+            <div class="line"><span class="w" data-t="25000" data-fx="bloom">حياتي ودنيتي</span></div>
+        </div>
+    </main>
+
+    <div class="ending" id="ending">
+        <div class="end-logo-container">
+            <div class="end-ring"></div>
+            <img src="https://z-cdn-media.chatglm.cn/files/e58422ca-f52d-459f-b07d-2beac3f4fc2c.jpg?auth_key=1884551388-c339c3c336e64901b001d214db38941a-0-1bd04176d2c93e8bbb89f5d394070cf7" class="end-logo" alt="ZAEEM">
+        </div>
+        <div class="end-title">ZAEEM</div>
+        <div class="end-credit">تصميم وإخراج : انس احمد</div>
+        <div class="ending-replay" id="replayBtn">إعادة العرض</div>
+    </div>
+
+    <audio id="audioEl" preload="auto"></audio>
+
+    <script>
+    // =============================================
+    // 1. إعداد الصوت (Audio API)
+    // =============================================
+    const audioEl = document.getElementById('audioEl');
+    let audioCtx, analyser, dataArray, source;
+    let bassLevel = 0;
+
+    function setupAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        source = audioCtx.createMediaElementSource(audioEl);
+        analyser = audioCtx.createAnalyser();
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+    }
+
+    function getBass() {
+        if(!analyser) return 0;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for(let i = 0; i < 10; i++) { sum += dataArray[i]; }
+        return sum / 10 / 255; 
+    }
+
+    // =============================================
+    // 2. محرك الرسم الفني المتطور (Live Particle Engine)
+    // =============================================
+    const artCvs = document.getElementById('art-canvas');
+    const artCtx = artCvs.getContext('2d');
+    let AW, AH;
+    function resizeArt() { AW = artCvs.width = innerWidth; AH = artCvs.height = innerHeight; }
+    resizeArt();
+    addEventListener('resize', resizeArt);
+
+    const bgp = document.getElementById('bgp');
+    let currentShape = 'wave';
+    let bgColor = '#030307';
+    let time = 0;
+
+    let particles = [];
+    const PARTICLE_COUNT = 1500; 
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * AW;
+            this.y = Math.random() * AH;
+            this.tx = this.x; this.ty = this.y;
+            this.vx = 0; this.vy = 0;
+            this.sz = Math.random() * 1.5 + 0.5;
+            this.a = Math.random() * 0.5 + 0.5;
+            this.hue = 200;
+        }
+        update() {
+            this.vx += (this.tx - this.x) * 0.05; // سرعة التتبع
+            this.vy += (this.ty - this.y) * 0.05;
+            this.vx *= 0.88; this.vy *= 0.88; // الإحتكاك (Friction)
+            // اهتزاز عشوائي بسيط عشانتبان حية
+            this.vx += (Math.random() - 0.5) * 0.4;
+            this.vy += (Math.random() - 0.5) * 0.4;
+            this.x += this.vx; this.y += this.vy;
+        }
+        draw(audioPulse) {
+            const size = Math.max(0.1, this.sz * (1 + audioPulse * 2.5)); 
+            artCtx.beginPath();
+            artCtx.arc(this.x, this.y, size, 0, Math.PI * 2);
+            artCtx.fillStyle = `hsla(${this.hue}, 80%, 60%, ${this.a})`;
+            artCtx.fill();
+        }
+    }
+
+    for(let i=0; i<PARTICLE_COUNT; i++) particles.push(new Particle());
+
+    // دالة تغيير الشكل واللون فقط
+    function setShape(type) {
+        currentShape = type;
+        if (type === 'wave') { bgColor = '#020308'; }
+        else if (type === 'cure') { bgColor = '#080705'; }
+        else if (type === 'infinity') { bgColor = '#030608'; }
+        else if (type === 'heart') { bgColor = '#0a0303'; }
+        else if (type === 'bloom') { bgColor = '#0a0805'; }
+    }
+
+    let artActive = false;
+    function animateArt() {
+        if (!artActive) return;
+        
+        time += 0.01; // زمن الحركة المستمر
+        bassLevel = getBass(); 
+        
+        // تأثير الحركة (Motion Blur)
+        artCtx.fillStyle = `rgba(3, 3, 7, 0.12)`; 
+        artCtx.fillRect(0, 0, AW, AH);
+        bgp.style.background = bgColor;
+
+        const cx = AW / 2, cy = AH / 2;
+        // حجم الشكل بيكبر مع إيقاع الأغنية
+        const baseScale = Math.min(AW, AH) * 0.25 * (1 + bassLevel * 0.5); 
+        const rot = time * 0.5; // دوران مستمر للأشكال
+
+        // حساب الأهداف (Targets) للجزيئات في كل إطار عشان الأشكال تتحرك وتلف
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            const p = particles[i];
+            const t = (i / PARTICLE_COUNT) * Math.PI * 2;
+            let x = 0, y = 0;
+
+            if (currentShape === 'wave') { 
+                // موجات متداخلة بتلف
+                x = Math.sin(t * 3 + time) * baseScale * 1.2;
+                y = Math.cos(t * 2 + time) * baseScale * 0.8;
+                p.hue = 210; 
+            } 
+            else if (currentShape === 'cure') { 
+                // نجمة متوهجة بتتنفس
+                const r = baseScale * (0.8 + Math.sin(t * 8 + time * 2) * 0.3);
+                x = Math.cos(t) * r;
+                y = Math.sin(t) * r;
+                p.hue = 45; 
+            } 
+            else if (currentShape === 'infinity') { 
+                // علامة اللانهاية بتلف حوالين نفسها
+                const scale = baseScale * 1.8;
+                x = (scale * Math.cos(t + time)) / (1 + Math.sin(t) * Math.sin(t));
+                y = (scale * Math.sin(t + time) * Math.cos(t + time)) / (1 + Math.sin(t) * Math.sin(t));
+                p.hue = 190; 
+            } 
+            else if (currentShape === 'heart') { 
+                // قلب بينبض مع الإيقاع
+                const pulse = 1 + bassLevel * 0.8;
+                x = 16 * Math.pow(Math.sin(t), 3);
+                y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                x *= (baseScale / 16) * pulse;
+                y *= (baseScale / 16) * pulse;
+                p.hue = 350; 
+            } 
+            else if (currentShape === 'bloom') { 
+                // وردة لوتس بتفتح وتقفل
+                const k = 4; 
+                const r = baseScale * Math.cos(k * t + time * 0.5);
+                x = r * Math.cos(t);
+                y = r * Math.sin(t);
+                p.hue = 40; 
+            }
+
+            // تطبيق الدوران على الشكل بالكامل
+            const rx = x * Math.cos(rot) - y * Math.sin(rot);
+            const ry = x * Math.sin(rot) + y * Math.cos(rot);
+
+            p.tx = cx + rx;
+            p.ty = cy + ry;
+        }
+
+        // هالة مركزية بتتنفس مع الموسيقى
+        const glowR = Math.max(1, 250 + bassLevel * 300);
+        const grad = artCtx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+        grad.addColorStop(0, `hsla(${particles[0].hue}, 80%, 50%, ${0.1 + bassLevel * 0.4})`);
+        grad.addColorStop(1, 'transparent');
+        artCtx.fillStyle = grad;
+        artCtx.fillRect(0, 0, AW, AH);
+
+        // تحديث و رسم الجزيئات
+        particles.forEach(p => { p.update(); p.draw(bassLevel); });
+
+        // رسم خطوط الربط (Constellation)
+        artCtx.lineWidth = 0.4;
+        for(let i=0; i<PARTICLE_COUNT; i+=4) {
+            for(let j=i+1; j<i+12; j++) {
+                if(j < PARTICLE_COUNT) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = dx*dx + dy*dy;
+                    if(dist < 2000) {
+                        artCtx.beginPath();
+                        artCtx.moveTo(particles[i].x, particles[i].y);
+                        artCtx.lineTo(particles[j].x, particles[j].y);
+                        artCtx.strokeStyle = `hsla(${particles[i].hue}, 80%, 60%, ${0.25 * (1 - dist/2000)})`;
+                        artCtx.stroke();
+                    }
+                }
+            }
+        }
+
+        requestAnimationFrame(animateArt);
+    }
+
+    // =============================================
+    // 3. التشغيل والتوقيتات
+    // =============================================
+    const intro = document.getElementById('intro');
+    const uploadZone = document.getElementById('uploadZone');
+    const audioInput = document.getElementById('audioInput');
+    const fileNameEl = document.getElementById('fileName');
+    const playBtn = document.getElementById('playBtn');
+    const skipNote = document.getElementById('skipNote');
+    const ending = document.getElementById('ending');
+    const replayBtn = document.getElementById('replayBtn');
+
+    let audioFile = null;
+    let started = false;
+
+    uploadZone.addEventListener('click', () => audioInput.click());
+    audioInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        audioFile = file;
+        fileNameEl.textContent = file.name;
+        uploadZone.classList.add('has-file');
+        playBtn.classList.add('ready');
+    });
+
+    skipNote.addEventListener('click', () => { audioFile = null; startShow(); });
+    playBtn.addEventListener('click', () => { if (!audioFile && !playBtn.classList.contains('ready')) return; startShow(); });
+    replayBtn.addEventListener('click', () => location.reload());
+
+    function startShow() {
+        if (started) return;
+        started = true;
+
+        if (audioFile) {
+            audioEl.src = URL.createObjectURL(audioFile);
+            audioEl.play().then(() => {
+                setupAudio();
+            }).catch(() => {});
+        }
+
+        intro.classList.add('gone');
+        artActive = true;
+        setShape('wave');
+        animateArt();
+
+        const v1 = document.getElementById('v1');
+        const v2 = document.getElementById('v2');
+        const v3 = document.getElementById('v3');
+        v1.classList.add('active');
+
+        const words = document.querySelectorAll('.w');
+        words.forEach(w => {
+            const t = parseInt(w.dataset.t);
+            const fx = w.dataset.fx;
+            setTimeout(() => {
+                w.classList.add('show');
+                setShape(fx);
+            }, t);
+        });
+
+        // إخفاء وظهور المقاطع
+        setTimeout(() => { v1.style.opacity = '0'; v1.style.filter = 'blur(6px)'; v2.classList.add('active'); }, 7500);
+        setTimeout(() => { v2.style.opacity = '0'; v2.style.filter = 'blur(6px)'; v3.classList.add('active'); }, 15500);
+        setTimeout(() => { v3.style.opacity = '0'; v3.style.filter = 'blur(10px)'; }, 28000);
+        
+        // شاشة النهاية
+        setTimeout(() => {
+            artActive = false; 
+            artCtx.clearRect(0,0,AW,AH); 
+            ending.classList.add('show');
+        }, 29500);
+        
+        if (audioFile) setTimeout(() => { audioEl.pause(); }, 30000);
+    }
+    </script>
+</body>
+</html>
